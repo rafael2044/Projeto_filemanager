@@ -19,11 +19,11 @@ class App(CTk):
         self.geometry('1100x900')
         self.title('Filemanager')
         self.configure(bg='#121111')
-        self.loader_main_frame()
+        self.load_widgets_main_windows()
         
         self.mainloop()
     
-    def loader_main_frame(self):
+    def load_widgets_main_windows(self):
         #Icons
         self.icons = {'File folder': ImageTk.PhotoImage(data=b64decode(folder)),
                       '.png':ImageTk.PhotoImage(data=b64decode(png)),
