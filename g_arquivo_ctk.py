@@ -58,6 +58,9 @@ class App(CTk):
         self.file_name_selected = ''
         self.current_copy_path = ''
         
+        #flag sort
+        self.flag_sort = False
+        
         
         #Frames
         self.f_main = CTkFrame(self, corner_radius=25)
@@ -107,7 +110,6 @@ class App(CTk):
         
         #Loads Files and Folders
         self.get_all_files()
-        self.upload_files()
         
     def context_menu(self, event):
         context_menu_file = {'Open':'', 'Rename':self.window_rename, 'Copy':self.copy, 'Cut':self.cut, 'separator':1,
@@ -337,14 +339,29 @@ class App(CTk):
             column = self.tview_files.identify_column(event.x) 
             sort_by = self.tview_files.heading(column)['text']
             if sort_by in self.columns_name:
-                if sort_by == 'Name':
+                if sort_by == self.columns_name[0]:
                     self.sort_by_name()
-                print('Ordenado por nome')
+                elif sort_by == self.columns_name[1]:
+                    self.sort_by_date_modified()
+                elif sort_by == self.columns_name[2]:
+                    self.sort_by_type()
+                elif sort_by == self.columns_name[3]:
+                    self.sort_by_size()
                 self.upload_files()
+                self.flag_sort = not self.flag_sort
     def sort_by_name(self):
-        self.list_all_files.sort(key=itemgetter('name'))
-        print(self.list_all_files)
+        self.list_all_files.sort(key=itemgetter('name'), reverse=self.flag_sort)
     
+    
+    def sort_by_date_modified(self):
+        self.list_all_files.sort(key=itemgetter('date'), reverse=self.flag_sort)
+        
+    def sort_by_type(self):
+        self.list_all_files.sort(key=itemgetter('extension'), reverse=self.flag_sort)
+    
+    def sort_by_size(self):
+        self.list_all_files.sort(key=itemgetter('size'), reverse=self.flag_sort)
+        
     def load_next_files(self, event):
         #Loader files and folders of next folder    
         folder = self.tview_files.selection()
@@ -396,12 +413,17 @@ class App(CTk):
     def file_search(self, event=None):
         #Upload files with searched name
         file_name = self.search.get()
-        current_path = self.current_path
         self.tview_files.delete(*self.tview_files.get_children())
         self.tview_files.insert('', END, values='...', image=self.icon_return)
-        
-        self.list_all_files = filter(lambda x: file_name in x['name'], self.list_all_files)
-        
-        self.upload_files()
+        files = list(filter(lambda x: file_name in x['name'].lower(), self.list_all_files))
+        self.tview_files.delete(self.tview_files.get_children())
+        self.tview_files.insert('', END, values=('...'))
+        for file in files:
+            if file['icon'] != None:
+                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                                                        file['size']), image=file['icon'])
+            else: 
+                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                                                        file['size']))
 
 App()
