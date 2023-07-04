@@ -1,12 +1,14 @@
 from tkinter import StringVar, X, BOTH, RIGHT, LEFT, Y, END, W, Menu, E, messagebox, BOTTOM
-from tkinter.ttk import Style, Treeview, Scrollbar, Menubutton
+from tkinter.ttk import Style, Treeview, Menubutton
 import os
 import shutil
 import datetime as dt
-from PIL import Image, ImageTk
+from PIL import ImageTk
 from pathlib import Path
 from hurry.filesize import alternative, size as sz
 from customtkinter import CTk, CTkEntry, CTkLabel, CTkButton, CTkFrame, CTkFont, CTkScrollbar
+from icons import *
+from base64 import b64decode
 
 
 class App(CTk):
@@ -22,14 +24,14 @@ class App(CTk):
     
     def loader_main_frame(self):
         #Icons
-        self.icons = {'File folder': ImageTk.PhotoImage(Image.open('icons/folder.png')),
-                      '.png':ImageTk.PhotoImage(Image.open('icons/arquivo-png.png')),
-                      '.bin':ImageTk.PhotoImage(Image.open('icons/bin.png')),
-                      '.deb':ImageTk.PhotoImage(Image.open('icons/deb.png')),
-                      '.py':ImageTk.PhotoImage(Image.open('icons/py.png')),
-                      '.jpg':ImageTk.PhotoImage(Image.open('icons/arquivo-jpg.png'))}
-        self.icon_search = ImageTk.PhotoImage(Image.open('icons/search.png'),)
-        self.icon_return = ImageTk.PhotoImage(Image.open('icons/turn-back.png'))
+        self.icons = {'File folder': ImageTk.PhotoImage(data=b64decode(folder)),
+                      '.png':ImageTk.PhotoImage(data=b64decode(png)),
+                      '.bin':ImageTk.PhotoImage(data=b64decode(bin)),
+                      '.deb':ImageTk.PhotoImage(data=b64decode(deb)),
+                      '.py':ImageTk.PhotoImage(data=b64decode(py)),
+                      '.jpg':ImageTk.PhotoImage(data=b64decode(jpg))}
+        self.icon_search = ImageTk.PhotoImage(data=b64decode(search))
+        self.icon_return = ImageTk.PhotoImage(data=b64decode(icon_return))
         
         #Style
         self.style = Style()
