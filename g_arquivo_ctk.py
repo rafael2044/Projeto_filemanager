@@ -40,17 +40,24 @@ class App(CTk):
         self.style.configure('Treeview', font=('Roboto Slab', 13), rowheight=40, background='#242323', foreground='white',
                              padding=(10,5), )
         self.style.layout('Treeview', [('Treeview.theearea', {'sticky':'nswe'})])
+        self.style.configure('TMenu.tk_popup', background='black')
+        self.style.configure('TMenubutton', foreground='black', font=('Roboto Slab', 15), background="#1f538d", padding=5, width=3)
+        
+        
+        #Fonts
         self.label_font = CTkFont(family='Roboto Slab', size=18, weight='bold')
         self.entry_font = CTkFont(family='Roboto Slab', size=18)
         self.button_font = CTkFont(family='Roboto Slab', size=15, weight='bold')
-        self.style.configure('TMenu.tk_popup', background='black')
-        self.style.configure('TMenubutton', foreground='black', font=('Roboto Slab', 15), background="#1f538d", padding=5, width=3)
+        
         #Variables
         self.current_path = Path('/')
         self.hidden_folder = StringVar()
         self.hidden_folder.set('off')
-        self.copy_file_name = ''
+        self.flag_cut = False
+        self.file_name_selected = ''
         self.current_copy_path = ''
+        
+        
         #Frames
         self.f_main = CTkFrame(self, corner_radius=25)
         self.f_browser = CTkFrame(self.f_main, height=50, fg_color='transparent')
@@ -61,15 +68,7 @@ class App(CTk):
         
         #menu right click
         self.f_browser_files.context_menu = Menu(self.f_browser_files, tearoff=0, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
-        self.f_browser_files.context_menu.add_command(label='Copy', command=self.copy)
-        self.f_browser_files.context_menu.add_command(label='Paste', command=self.to_paste)
-        self.f_browser_files.context_menu.add_command(label='Delete', command=self.delete)
-        self.f_browser_files.context_menu.add_separator()
-        self.f_browser_files.context_menu_create = Menu(self.f_browser_files, tearoff=0, font=('Roboto Slab', 12))
-        self.f_browser_files.context_menu_create.add_command(label='Folder', command=self.window_creation_folder)
-        self.f_browser_files.context_menu_create.add_command(label='File')
-        self.f_browser_files.context_menu.add_cascade(label='Create New +', menu=self.f_browser_files.context_menu_create)
-        
+
         #Treeview
         self.tview_files = Treeview(self.f_browser_files, columns=['#01', '#02', '#03','#04'], show='tree headings',
                                     selectmode='extended')
@@ -107,26 +106,64 @@ class App(CTk):
         self.upload_files()
         
     def context_menu(self, event):
+        context_menu_file = {'Open':'', 'Rename':self.window_rename, 'Copy':self.copy, 'Cut':self.cut, 'separator':1,
+                             'Delete':self.delete}
+        context_menu = {'Paste':self.to_paste, 'separator':1, 'Create new':{'Folder': self.window_creation_folder, 'File': ''}}
         try:
+            if len(self.tview_files.selection()) == 1:
+                for name, command in context_menu_file.items():
+                    if name == 'separator':
+                        self.f_browser_files.context_menu.add_separator()
+                    else:
+                        self.f_browser_files.context_menu.add_command(label=name, command=command)
+                        
+                self.check_copy()
+                self.check_delete_option()
+            else:
+                for name, command in context_menu.items():
+                    if name == 'separator':
+                        self.f_browser_files.context_menu.add_separator()
+                    elif name == 'Create new':
+                        cascade_menu = Menu(self.f_browser_files, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
+                        for n, c in context_menu[name].items():
+                            cascade_menu.add_command(label=n, command=c)
+                        self.f_browser_files.context_menu.add_cascade(label=name, menu=cascade_menu)
+                    else:
+                        self.f_browser_files.context_menu.add_command(label=name, command=command)
+                self.check_paste_option()
             self.f_browser_files.context_menu.tk_popup(event.x_root, event.y_root)
-            row = self.tview_files.selection()
-            if len(row) >=1:
-                self.copy_file_name = self.tview_files.item(row[0]).get('values')[0]
+            
         finally:
             self.f_browser_files.context_menu.grab_release()
-            self.check_delete_option()
-            self.check_paste_option()
-            self.check_creation_menu_options()
+            #self.check_creation_menu_options()
             self.f_browser_files.context_menu.bind('<FocusOut>', self.close_context_menu)
-    
+        
     def close_context_menu(self, event):
         self.f_browser_files.context_menu.unpost()
+        self.f_browser_files.context_menu.delete(0, END)
     
     def copy(self):
-        if self.copy_file_name != '':
-            self.current_copy_path = Path(self.current_path, self.copy_file_name)
-            self.check_paste_option()
+        if self.file_name_selected != '':
+            self.current_copy_path = Path(self.current_path, self.file_name_selected)
+            self.file_name_copy = self.file_name_selected
+            #self.check_paste_option()
    
+    def cut(self):
+        self.copy()
+        self.flag_cut = True
+        
+    def get_selectect_file_name(self, event):
+        try:
+            self.file_name_selected = self.tview_files.item(self.tview_files.selection()[0]).get('values')[0]
+        except IndexError as e:
+            pass
+        
+    def check_copy(self):
+        if len(self.tview_files.selection()) < 1:
+            self.f_browser_files.context_menu.entryconfig('Copy', state='disabled')
+        else:
+            self.f_browser_files.context_menu.entryconfig('Copy', state='normal')
+            
     def check_paste_option(self):
         if self.current_copy_path != '' and Path.exists(self.current_copy_path):
             self.f_browser_files.context_menu.entryconfig('Paste', state='normal')
@@ -146,25 +183,32 @@ class App(CTk):
             self.f_browser_files.context_menu.entryconfig('Delete', state='normal')
         else:
             self.f_browser_files.context_menu.entryconfig('Delete', state='disabled')
-      
+
     def to_paste(self):
-        if self.current_copy_path != '' and Path.exists(self.current_copy_path) and Path.is_file(self.current_copy_path):
+        if Path.exists(self.current_copy_path) and Path.is_file(self.current_copy_path):
             #Corrigir essa parte da copia de arquivos existentes
-            if Path.exists(Path(self.current_path, self.copy_file_name)):
-                file_name = self.copy_file_name.split('.')
+            if Path.exists(Path(self.current_path, self.file_name_copy)):
+                file_name = self.file_name_copy.split('.')
                 if file_name[0][-1] in '123456789':
                     new_name = f'{file_name[0][:-1]}{int(file_name[0][-1])+1}.{file_name[1]}'
                 if file_name[0][-1] != '1':
                     new_name = f'{file_name[0]}1.{file_name[1]}'
-                shutil.copy(Path(self.current_path, self.copy_file_name), Path(self.current_path, new_name))
+                shutil.copy(Path(self.current_path, self.file_name_copy), Path(self.current_path, new_name))
             else:
-                shutil.copy(self.current_copy_path, self.current_path)
+                if self.flag_cut:
+                    shutil.move(self.current_copy_path, self.current_path)
+                    self.flag_cut = not self.flag_cut
+                else:
+                    shutil.copy(self.current_copy_path, self.current_path)
         if Path.is_dir(self.current_copy_path):
-            shutil.copytree(self.current_copy_path, Path(self.current_path, self.copy_file_name), copy_function=shutil.copy)
+            if self.flag_cut:
+                shutil.move(self.current_copy_path, self.current_path, copy_function=shutil.move)
+            else:
+                shutil.copytree(self.current_copy_path, Path(self.current_path, self.file_name_copy), copy_function=shutil.copy)
         self.upload_files() 
         
     def delete(self):   
-        file = Path(self.current_path, self.copy_file_name)
+        file = Path(self.current_path, self.file_name_selected)
         if Path.exists(file):
             if Path.is_file(file):
                 confirmation = messagebox.askyesno(title='Delete Alert',
@@ -177,7 +221,7 @@ class App(CTk):
                 if confirmation:
                     shutil.rmtree(file, ignore_errors=True)
                     
-            self.copy_file_name = ''
+            self.file_name_selected = ''
             self.current_copy_path = ''
             self.upload_files()
    
@@ -186,6 +230,7 @@ class App(CTk):
             Path(self.current_path, window.name_folder.get()).mkdir(exist_ok=True)
             window.name_folder.delete(0, END)
             self.upload_files()
+            window.destroy()
             
         window = CTkToplevel(self)
         window.title("New Folder - Filemanager")
@@ -207,7 +252,43 @@ class App(CTk):
         window.grab_set()
         window.bind('WM_DELETE_WINDOW', window.destroy)
         window.mainloop()
+           
+    def window_rename(self):
+        def rename():
+            if self.file_name_selected != '':
             
+                self.current_copy_path = Path(self.current_path, self.file_name_selected)
+                extension = Path(self.current_copy_path).suffix
+                new_name = window.new_name.get()
+                if extension != '':
+                    new_name = new_name + extension
+                Path.rename(self.current_copy_path, Path(self.current_path, new_name))
+                self.current_copy_path = ''
+                self.file_name_selected = ''
+                self.upload_files()
+                window.destroy()
+            
+        window = CTkToplevel(self)
+        window.title("Rename - Filemanager")
+        window.geometry('500x100')
+        window.resizable(False, False)
+        
+        window.new_name = CTkEntry(window, placeholder_text='enter the new name', font=self.entry_font)
+        window.f_button = CTkFrame(window, fg_color='transparent')
+        
+        window.b_ok = CTkButton(window.f_button, text='Ok', font=self.button_font, command=rename)
+        window.b_cancel = CTkButton(window.f_button, text='Cancel', command=window.destroy, font=self.button_font)
+        
+        window.new_name.pack(padx=10, fill=X, pady=15)
+        window.f_button.pack(fill=X, padx=10)
+        window.b_ok.pack(side=LEFT, padx=30, fill=X, expand=True)
+        window.b_cancel.pack(side=RIGHT, padx=25, fill=X, expand=True)
+
+        window.focus_force()
+        window.grab_set()
+        window.bind('WM_DELETE_WINDOW', window.destroy)
+        window.mainloop()   
+         
     def upload_files(self):
         #Loads Files and Folders from current Path
         files = sorted(os.listdir(self.current_path), reverse=True)
@@ -229,6 +310,7 @@ class App(CTk):
             else: 
                 self.tview_files.insert('',END, values=(file, date_modified, extension_file, size))
         self.load_current_path()
+        self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
         self.tview_files.bind('<Double-1>', self.load_next_files)
         self.tview_files.bind('<Button-3>', self.context_menu)
         self.tview_files.bind('<Return>', self.load_next_files)
