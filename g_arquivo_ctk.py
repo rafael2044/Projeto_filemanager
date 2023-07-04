@@ -9,6 +9,7 @@ from hurry.filesize import alternative, size as sz
 from customtkinter import CTk, CTkEntry, CTkLabel, CTkButton, CTkFrame, CTkFont, CTkScrollbar, CTkToplevel
 from icons import *
 from base64 import b64decode
+from operator import itemgetter
 
 
 class App(CTk):
@@ -66,16 +67,18 @@ class App(CTk):
         self.f_search = CTkFrame(self.f_browser, height=20)
         self.f_current_path = CTkFrame(self.f_search, height=20, fg_color='transparent')
         
-        #menu right click
+        #Context Menu
         self.f_browser_files.context_menu = Menu(self.f_browser_files, tearoff=0, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
 
         #Treeview
-        self.tview_files = Treeview(self.f_browser_files, columns=['#01', '#02', '#03','#04'], show='tree headings',
+        self.columns_name = ['Name', 'Date Modified', 'Type', 'Size' ]
+        self.tview_files = Treeview(self.f_browser_files, columns=['#01', "#02", "#03", "#04"], show='tree headings',
                                     selectmode='extended')
-        self.tview_files.heading('#01', text='Name', anchor=W)
-        self.tview_files.heading('#02', text='Date Modified', anchor=W)
-        self.tview_files.heading('#03', text='Type', anchor=W)
-        self.tview_files.heading('#04', text='Size', anchor=W)
+        
+        self.tview_files.heading('#01',text=self.columns_name[0], anchor=W)
+        self.tview_files.heading('#02',text= self.columns_name[1], anchor=W)
+        self.tview_files.heading('#03', text=self.columns_name[2], anchor=W)
+        self.tview_files.heading('#04', text=self.columns_name[3], anchor=W)
         self.tview_files.column('#0', width=30)
         self.tview_files.column('#01', width=500)
         self.tview_files.column('#02', width=150)
@@ -103,6 +106,7 @@ class App(CTk):
         self.load_search_widgets()
         
         #Loads Files and Folders
+        self.get_all_files()
         self.upload_files()
         
     def context_menu(self, event):
@@ -290,15 +294,31 @@ class App(CTk):
         window.mainloop()   
          
     def upload_files(self):
-        #Loads Files and Folders from current Path
-        files = sorted(os.listdir(self.current_path), reverse=True)
-        if self.hidden_folder.get() == 'off':
-            files = filter(lambda x: x[0] != '.', files)
-        
         self.tview_files.delete(*self.tview_files.get_children())
         if self.current_path != Path('/'):
-            self.tview_files.insert('', END, values=('...'), image=self.icon_return)
-        for file in files:
+             self.tview_files.insert('', END, values='...')
+        for file in self.list_all_files:
+            if file['icon'] != None:
+                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                                                        file['size']), image=file['icon'])
+            else: 
+                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                                                        file['size']))
+
+        self.load_current_path()
+        self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
+        self.tview_files.bind('<Button-1>', self.sort_files)
+        self.tview_files.bind('<Double-1>', self.load_next_files)
+        self.tview_files.bind('<Button-3>', self.context_menu)
+        self.tview_files.bind('<Return>', self.load_next_files)
+             
+    def get_all_files(self):
+        all_files = os.listdir(self.current_path)
+        if self.hidden_folder.get() == 'off':
+            all_files = filter(lambda x: x[0] != '.', all_files)
+        self.list_all_files = []
+            
+        for file in all_files:
             stat_file = os.stat(Path(self.current_path, file))
             extension_file = Path(self.current_path, file).suffix
             date_modified = dt.datetime.fromtimestamp(stat_file.st_mtime).strftime('%d/%m/%Y %H:%M:%S')
@@ -306,14 +326,24 @@ class App(CTk):
             if '' == extension_file:
                 extension_file = 'File folder'
             if extension_file in self.icons:
-                self.tview_files.insert('',END, values=(file, date_modified, extension_file, size), image=self.icons[extension_file])
-            else: 
-                self.tview_files.insert('',END, values=(file, date_modified, extension_file, size))
-        self.load_current_path()
-        self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
-        self.tview_files.bind('<Double-1>', self.load_next_files)
-        self.tview_files.bind('<Button-3>', self.context_menu)
-        self.tview_files.bind('<Return>', self.load_next_files)
+                self.list_all_files.append({'name': file, 'date':date_modified, 'extension':extension_file,'size':size, 'icon':self.icons[extension_file]})
+            else:
+                self.list_all_files.append({'name': file,'date':date_modified, 'extension':extension_file,'size':size, 'icon':None})  
+    
+        self.upload_files()
+    def sort_files(self, event):
+        region = self.tview_files.identify('region', event.x, event.y)
+        if region == 'heading':
+            column = self.tview_files.identify_column(event.x) 
+            sort_by = self.tview_files.heading(column)['text']
+            if sort_by in self.columns_name:
+                if sort_by == 'Name':
+                    self.sort_by_name()
+                print('Ordenado por nome')
+                self.upload_files()
+    def sort_by_name(self):
+        self.list_all_files.sort(key=itemgetter('name'))
+        print(self.list_all_files)
     
     def load_next_files(self, event):
         #Loader files and folders of next folder    
@@ -324,7 +354,7 @@ class App(CTk):
                 self.current_path = Path(self.current_path, folder)
             if folder == '...':
                 self.current_path = self.current_path.parent
-            self.upload_files()
+            self.get_all_files()
     
     def load_info_widgets(self):
         #Loads disks and sourcer dir
@@ -340,7 +370,7 @@ class App(CTk):
     def load_file_from_disk(self, path):
         #Loads disks and files on disk
         self.current_path = path
-        self.upload_files()
+        self.get_all_files()
     
     def load_current_path(self):
         #Loads current path and menu into information frame
@@ -369,17 +399,9 @@ class App(CTk):
         current_path = self.current_path
         self.tview_files.delete(*self.tview_files.get_children())
         self.tview_files.insert('', END, values='...', image=self.icon_return)
-        for file in os.listdir(Path(current_path)):
-            if file_name in file:
-                stat_file = os.stat(Path(self.current_path, file))
-                extension_file = Path(self.current_path, file).suffix
-                date_modified = dt.datetime.fromtimestamp(stat_file.st_mtime).strftime('%d/%m/%Y %H:%M:%S')
-                size = sz(stat_file.st_size, system=alternative)
-                if '' == extension_file:
-                    extension_file = 'File folder'
-                if extension_file in self.icons:
-                    self.tview_files.insert('',END, values=(file, date_modified, extension_file, size), image=self.icons[extension_file])
-                else: 
-                    self.tview_files.insert('',END, values=(file, date_modified, extension_file, size))
+        
+        self.list_all_files = filter(lambda x: file_name in x['name'], self.list_all_files)
+        
+        self.upload_files()
 
 App()
