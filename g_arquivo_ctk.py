@@ -471,13 +471,23 @@ class App(CTk):
         self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
     def load_menu_options(self):
         x, y = self.f_current_path.b_menu.winfo_rootx(), self.f_current_path.b_menu.winfo_rooty()
-        options_menu = {'Create Folder':self.window_creation_folder, 'Show Hidden Folders':self.get_all_files}
-        for name_option, command in options_menu.items():
+        options_menu = {'Create new':{'Create Folder': self.window_creation_folder}, 'Show Hidden Folders':self.get_all_files}
+        for name_option, command_option in options_menu.items():
             if 'Hidden' in name_option:
-                self.f_current_path.menu_options.add_checkbutton(label=name_option, command=command, variable=self.hidden_folder, onvalue='on', 
+                self.f_current_path.menu_options.add_checkbutton(label=name_option, command=command_option, variable=self.hidden_folder, onvalue='on', 
                                                                  offvalue='off')
-        
+            if name_option == 'Create new':
+                cascade_menu = Menu(self.f_current_path.menu_options,font=('Roboto Slab', 14), background='white', borderwidth=2)
+                for name_casc_option, command_casc_option in options_menu[name_option].items():
+                    cascade_menu.add_command(label=name_casc_option, command=command_casc_option)
+                self.f_current_path.menu_options.add_cascade(label=name_option, menu=cascade_menu)
+        self.f_current_path.menu_options.grab_release()
         self.f_current_path.menu_options.tk_popup(x,y+30)
+        self.f_current_path.menu_options.bind('<FocusOut>', self.close_context_menu)
+        
+    def close_menu_options(self, event):
+        self.f_current_path.menu_options.delete(0, END)
+        self.f_current_path.menu_options.unpost()
     def load_search_widgets(self):
         #Loads search frame widgets
         self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
