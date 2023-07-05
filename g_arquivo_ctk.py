@@ -356,15 +356,20 @@ class App(CTk):
         self.list_all_files = []
             
         for file in all_files:
-            stat_file = os.stat(Path(self.current_path, file))
-            extension_file = file[file.rfind('.')+1:] if file.rfind('.') !=  -1 else 'File folder'
-            file = file[:file.rfind('.')] if file.rfind('.') !=  -1 else file
-            date_modified = stat_file.st_mtime
-            size = stat_file.st_size
-            if extension_file in self.icons:
-                self.list_all_files.append({'name': file, 'date':date_modified, 'extension':extension_file,'size':size, 'icon':self.icons[extension_file]})
-            else:
-                self.list_all_files.append({'name': file,'date':date_modified, 'extension':extension_file,'size':size, 'icon':None})  
+            file_path = Path(self.current_path, file)
+            if file_path.is_dir() or file_path.is_file():
+                stat_file = os.stat(Path(self.current_path, file))
+                if file[0] != '.':
+                    extension_file = file[file.rfind('.')+1:] if file.rfind('.') !=  -1 else 'File folder'
+                    file = file[:file.rfind('.')] if file.rfind('.') !=  -1 else file
+                else:
+                    extension_file = 'File folder'
+                date_modified = stat_file.st_mtime
+                size = stat_file.st_size
+                if extension_file in self.icons:
+                    self.list_all_files.append({'name': file, 'date':date_modified, 'extension':extension_file,'size':size, 'icon':self.icons[extension_file]})
+                else:
+                    self.list_all_files.append({'name': file,'date':date_modified, 'extension':extension_file,'size':size, 'icon':None})
     
         self.sort_files()
         
@@ -430,14 +435,15 @@ class App(CTk):
         
     def load_next_files(self, event):
         #Loader files and folders of next folder    
-        folder = self.tview_files.selection()
-        if len(folder) == 1:
-            folder = self.tview_files.item(folder[0])['values'][0]
-            if folder != '...' and Path.is_dir(Path(self.current_path, folder)):
-                self.current_path = Path(self.current_path, folder)
+        folder = self.file_name_selected
+        if folder != '':
+            if folder != '...':
+                path_folder = Path(self.current_path, folder)
+                if path_folder.is_dir():
+                    self.current_path = path_folder
             if folder == '...':
                 self.current_path = self.current_path.parent
-            self.get_all_files()
+            self.get_all_files()    
     
     def load_info_widgets(self):
         #Loads disks and sourcer dir
@@ -460,13 +466,18 @@ class App(CTk):
         [x.destroy() for x in self.f_current_path.winfo_children()]
         CTkLabel(self.f_current_path, text=self.current_path, font=self.label_font).pack(anchor=W, side=LEFT)
         #Alterar menu de opcoes
-        self.f_current_path.menubutton_1 = Menubutton(self.f_current_path, text='...', style='TMenubutton',width=2)
-        self.f_current_path.menubutton_1.menu = Menu(self.f_current_path.menubutton_1, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
-        self.f_current_path.menubutton_1['menu'] = self.f_current_path.menubutton_1.menu
-        self.f_current_path.menubutton_1.menu.add_checkbutton(label='Hidden Folders', onvalue='on',
-                                                              offvalue='off', variable=self.hidden_folder, command=self.upload_files)
-        self.f_current_path.menubutton_1.pack(anchor=E)
-          
+        self.f_current_path.menu_options = Menu(self.f_current_path, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
+        self.f_current_path.b_menu = CTkButton(self.f_current_path, text='...', font=self.button_font, command=self.load_menu_options, width=50, height=30)
+        self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
+    def load_menu_options(self):
+        x, y = self.f_current_path.b_menu.winfo_rootx(), self.f_current_path.b_menu.winfo_rooty()
+        options_menu = {'Create Folder':self.window_creation_folder, 'Show Hidden Folders':self.get_all_files}
+        for name_option, command in options_menu.items():
+            if 'Hidden' in name_option:
+                self.f_current_path.menu_options.add_checkbutton(label=name_option, command=command, variable=self.hidden_folder, onvalue='on', 
+                                                                 offvalue='off')
+        
+        self.f_current_path.menu_options.tk_popup(x,y+30)
     def load_search_widgets(self):
         #Loads search frame widgets
         self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
@@ -481,15 +492,10 @@ class App(CTk):
         file_name = self.search.get()
         self.tview_files.delete(*self.tview_files.get_children())
         self.tview_files.insert('', END, values='...', image=self.icon_return)
-        files = list(filter(lambda x: file_name in x['name'].lower(), self.list_all_files))
-        self.tview_files.delete(self.tview_files.get_children())
-        self.tview_files.insert('', END, values=('...'))
-        for file in files:
-            if file['icon'] != None:
-                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
-                                                        file['size']), image=file['icon'])
-            else: 
-                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
-                                                        file['size']))
+        files = list(filter(lambda x: file_name.lower() in x['name'].lower(), self.list_all_files))
+        if file_name != '':
+            self.upload_files(files)
+        else:
+            self.sort_files()
 
 App()
