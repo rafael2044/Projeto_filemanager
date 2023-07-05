@@ -1,7 +1,8 @@
 from tkinter import StringVar, X, BOTH, RIGHT, LEFT, Y, END, W, Menu, E, messagebox, BOTTOM, IntVar
-from tkinter.ttk import Style, Treeview, Menubutton
-import os
-import shutil
+from tkinter.ttk import Style, Treeview
+from os import listdir, stat, remove, uname, popen
+from os.path import isfile
+from shutil import move, copy, copytree, rmtree
 import datetime as dt
 from PIL import ImageTk
 from pathlib import Path
@@ -180,9 +181,10 @@ class App(CTk):
         self.f_browser_files.context_menu.unpost()
     
     def copy(self):
-        if self.file_name_selected != '':
-            self.current_copy_path = Path(self.current_path, self.file_name_selected)
-            self.file_name_copy = self.file_name_selected
+        file = self.file_name_selected
+        if file != '':
+            self.current_copy_path = Path(self.current_path, file)
+            self.file_name_copy = file
    
     def cut(self):
         self.copy()
@@ -190,7 +192,18 @@ class App(CTk):
         
     def get_selectect_file_name(self, event):
         try:
-            self.file_name_selected = self.tview_files.item(self.tview_files.selection()[0]).get('values')[0]
+            name = self.tview_files.item(self.tview_files.selection()[0]).get('values')[0]
+            if name != '...':
+                file = list(filter(lambda x: x['name'] == name, self.list_all_files))
+                if len(file) == 1:
+                    file = file[0]
+                    if file['extension'] != 'File folder':
+                        self.file_name_selected = f"{name}.{file['extension']}"
+                    else:
+                        self.file_name_selected = name
+            else:
+                self.file_name_selected = name
+            
         except IndexError as e:
             pass
         
@@ -229,34 +242,36 @@ class App(CTk):
                     new_name = f'{file_name[0][:-1]}{int(file_name[0][-1])+1}.{file_name[1]}'
                 if file_name[0][-1] != '1':
                     new_name = f'{file_name[0]}1.{file_name[1]}'
-                shutil.copy(Path(self.current_path, self.file_name_copy), Path(self.current_path, new_name))
+                copy(Path(self.current_path, self.file_name_copy), Path(self.current_path, new_name))
             else:
                 if self.flag_cut:
-                    shutil.move(self.current_copy_path, self.current_path)
+                    move(self.current_copy_path, self.current_path)
                     self.flag_cut = not self.flag_cut
                 else:
-                    shutil.copy(self.current_copy_path, self.current_path)
+                    copy(self.current_copy_path, self.current_path)
         if Path.is_dir(self.current_copy_path):
             if self.flag_cut:
-                shutil.move(self.current_copy_path, self.current_path, copy_function=shutil.move)
+                move(self.current_copy_path, self.current_path, copy_function=move)
             else:
-                shutil.copytree(self.current_copy_path, Path(self.current_path, self.file_name_copy), copy_function=shutil.copy)
+                copytree(self.current_copy_path, Path(self.current_path, self.file_name_copy), copy_function=copy)
         self.get_all_files()
         
     def delete(self):   
-        file = Path(self.current_path, self.file_name_selected)
-        if Path.exists(file):
-            if Path.is_file(file):
+        file_name = self.file_name_selected
+        file_path = Path(self.current_path, file_name)
+        if file_path.exists():
+            if file_path.is_dir():
                 confirmation = messagebox.askyesno(title='Delete Alert',
-                                       message='do you want to delete the file?')
+                                                message="Do you want to delete the directory? (Subdirectories will also be excluded)")
                 if confirmation:
-                    os.remove(file)
-            if Path.is_dir(file):
+                    rmtree(file_path, ignore_errors=True)
+            if isfile(file_path):
                 confirmation = messagebox.askyesno(title='Delete Alert',
-                                                   message="Do you want to delete the directory? (Subdirectories will also be excluded)")
+                                    message='do you want to delete the file?')
                 if confirmation:
-                    shutil.rmtree(file, ignore_errors=True)
-            self.list_all_files = list(filter(lambda x: x['name'] != self.file_name_selected, self.list_all_files))
+                    remove(file_path)
+                    
+            self.list_all_files = list(filter(lambda x: x['name'] != file_name[:file_name.rfind('.')], self.list_all_files))
             self.file_name_selected = ''
             self.current_copy_path = ''
             self.sort_files()
@@ -265,7 +280,7 @@ class App(CTk):
         def create_folder():
             folder = Path(self.current_path, window.name_folder.get())
             folder.mkdir(exist_ok=True)
-            folder = os.stat(folder)
+            folder = stat(folder)
             
             self.list_all_files.append({'name':window.name_folder.get(), 'date':folder.st_mtime,
                                         'extension':'File folder', 'size': folder.st_size, 'icon':self.icons['File folder']})
@@ -350,7 +365,7 @@ class App(CTk):
         self.tview_files.bind('<Return>', self.load_next_files)
              
     def get_all_files(self):
-        all_files = os.listdir(self.current_path)
+        all_files = listdir(self.current_path)
         if self.hidden_folder.get() == 'off':
             all_files = filter(lambda x: x[0] != '.', all_files)
         self.list_all_files = []
@@ -358,7 +373,7 @@ class App(CTk):
         for file in all_files:
             file_path = Path(self.current_path, file)
             if file_path.is_dir() or file_path.is_file():
-                stat_file = os.stat(Path(self.current_path, file))
+                stat_file = stat(Path(self.current_path, file))
                 if file[0] != '.':
                     extension_file = file[file.rfind('.')+1:] if file.rfind('.') !=  -1 else 'File folder'
                     file = file[:file.rfind('.')] if file.rfind('.') !=  -1 else file
@@ -447,10 +462,10 @@ class App(CTk):
     
     def load_info_widgets(self):
         #Loads disks and sourcer dir
-        if list(os.uname())[0] == 'Linux':
-            user = list(os.popen('whoami'))[0].rsplit('\n')[0]
+        if list(uname())[0] == 'Linux':
+            user = list(popen('whoami'))[0].rsplit('\n')[0]
             source = Path('/')
-            discs = os.listdir(f'/media/{user}')
+            discs = listdir(f'/media/{user}')
             CTkButton(self.f_info, text=source, command= lambda : self.load_file_from_disk(source)).pack(side=LEFT, padx=10, pady=10)
             [CTkButton(self.f_info, text=discs[x], 
                         command= lambda x=x: self.load_file_from_disk(Path(f'/media/{user}', discs[x])))
@@ -465,7 +480,6 @@ class App(CTk):
         #Loads current path and menu into information frame
         [x.destroy() for x in self.f_current_path.winfo_children()]
         CTkLabel(self.f_current_path, text=self.current_path, font=self.label_font).pack(anchor=W, side=LEFT)
-        #Alterar menu de opcoes
         self.f_current_path.menu_options = Menu(self.f_current_path, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
         self.f_current_path.b_menu = CTkButton(self.f_current_path, text='...', font=self.button_font, command=self.load_menu_options, width=50, height=30)
         self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
