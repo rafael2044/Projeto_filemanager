@@ -1,4 +1,4 @@
-from tkinter import StringVar, X, BOTH, RIGHT, LEFT, Y, END, W, Menu, E, messagebox, BOTTOM
+from tkinter import StringVar, X, BOTH, RIGHT, LEFT, Y, END, W, Menu, E, messagebox, BOTTOM, IntVar
 from tkinter.ttk import Style, Treeview, Menubutton
 import os
 import shutil
@@ -26,11 +26,11 @@ class App(CTk):
     def load_widgets_main_windows(self):
         #Icons
         self.icons = {'File folder': ImageTk.PhotoImage(data=b64decode(folder)),
-                      '.png':ImageTk.PhotoImage(data=b64decode(png)),
-                      '.bin':ImageTk.PhotoImage(data=b64decode(bin)),
-                      '.deb':ImageTk.PhotoImage(data=b64decode(deb)),
-                      '.py':ImageTk.PhotoImage(data=b64decode(py)),
-                      '.jpg':ImageTk.PhotoImage(data=b64decode(jpg))}
+                      'png':ImageTk.PhotoImage(data=b64decode(png)),
+                      'bin':ImageTk.PhotoImage(data=b64decode(bin)),
+                      'deb':ImageTk.PhotoImage(data=b64decode(deb)),
+                      'py':ImageTk.PhotoImage(data=b64decode(py)),
+                      'jpg':ImageTk.PhotoImage(data=b64decode(jpg))}
         self.icon_search = ImageTk.PhotoImage(data=b64decode(search))
         self.icon_return = ImageTk.PhotoImage(data=b64decode(icon_return))
         
@@ -59,7 +59,13 @@ class App(CTk):
         self.current_copy_path = ''
         
         #flag sort
-        self.flag_sort = False
+        self.flag_sort_stats = IntVar()
+        self.flag_sort_stats.set(0)
+        self.flag_sort_stats_options = IntVar()
+        self.flag_sort_stats_options.set(0)
+        self.flag_sort_active = StringVar()
+        self.flag_sort_active.set('Name')
+
         
         
         #Frames
@@ -78,10 +84,10 @@ class App(CTk):
         self.tview_files = Treeview(self.f_browser_files, columns=['#01', "#02", "#03", "#04"], show='tree headings',
                                     selectmode='extended')
         
-        self.tview_files.heading('#01',text=self.columns_name[0], anchor=W, command=self.sort_by_name)
-        self.tview_files.heading('#02',text= self.columns_name[1], anchor=W, command=self.sort_by_date_modified)
-        self.tview_files.heading('#03', text=self.columns_name[2], anchor=W, command=self.sort_by_type)
-        self.tview_files.heading('#04', text=self.columns_name[3], anchor=W, command=self.sort_by_size)
+        self.tview_files.heading('#01',text=self.columns_name[0], anchor=W)
+        self.tview_files.heading('#02',text= self.columns_name[1], anchor=W)
+        self.tview_files.heading('#03', text=self.columns_name[2], anchor=W)
+        self.tview_files.heading('#04', text=self.columns_name[3], anchor=W)
         
         self.tview_files.column('#0', width=30)
         self.tview_files.column('#01', width=500)
@@ -111,11 +117,18 @@ class App(CTk):
         
         #Loads Files and Folders
         self.get_all_files()
+        self.sort_files()
         
     def context_menu(self, event):
         context_menu_file = {'Open':'', 'Rename':self.window_rename, 'Copy':self.copy, 'Cut':self.cut, 'separator':1,
                              'Delete':self.delete}
-        context_menu = {'Paste':self.to_paste, 'separator':1, 'Create new':{'Folder': self.window_creation_folder, 'File': ''}}
+        context_menu = {'Sort By':{'Name': 0 ,'Date Modified': 1,
+                                   'Size':2, 'Type':3,
+                                   'alternative':{'Name':{'A-Z': 0, 'Z-A': 1}, 
+                                                       'Date Modified':{'Older':0, 'Newest': 1},
+                                                       'Size':{'First the smallest':0, 'First the biggest':1},
+                                                       'Type':{'A-Z':0, 'Z-A':1}}},
+                        'Paste':self.to_paste, 'separator':1, 'Create new':{'Folder': self.window_creation_folder, 'File': ''}}
         try:
             if len(self.tview_files.selection()) == 1:
                 for name, command in context_menu_file.items():
@@ -130,30 +143,46 @@ class App(CTk):
                 for name, command in context_menu.items():
                     if name == 'separator':
                         self.f_browser_files.context_menu.add_separator()
+                        
+                    elif name == 'Sort By':
+                        cascade_menu = Menu(self.f_browser_files, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
+                        for name_op_cascade, value in context_menu[name].items():
+                            if name_op_cascade == 'alternative':
+                                pass
+                            else:
+                                cascade_menu.add_radiobutton(label=name_op_cascade, var = self.flag_sort_stats, value=value, command= lambda x=name_op_cascade: self.flag_sort_active.set(x))
+                        if self.flag_sort_stats.get() in [0,1,2,3]:
+                            cascade_menu.add_separator()
+                            for name_sort_options in context_menu[name]['alternative']:
+                                if name_sort_options == self.flag_sort_active.get():
+                                    for name_alt_sort_options, value_option in context_menu[name]['alternative'][name_sort_options].items():
+                                        cascade_menu.add_radiobutton(label=name_alt_sort_options, var=self.flag_sort_stats_options ,value=value_option)        
+                        self.f_browser_files.context_menu.add_cascade(label=name, menu=cascade_menu)
+                        
                     elif name == 'Create new':
                         cascade_menu = Menu(self.f_browser_files, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
                         for n, c in context_menu[name].items():
                             cascade_menu.add_command(label=n, command=c)
                         self.f_browser_files.context_menu.add_cascade(label=name, menu=cascade_menu)
-                    else:
+                    
+                    else: 
                         self.f_browser_files.context_menu.add_command(label=name, command=command)
                 self.check_paste_option()
             self.f_browser_files.context_menu.tk_popup(event.x_root, event.y_root)
             
         finally:
             self.f_browser_files.context_menu.grab_release()
-            #self.check_creation_menu_options()
             self.f_browser_files.context_menu.bind('<FocusOut>', self.close_context_menu)
         
     def close_context_menu(self, event):
-        self.f_browser_files.context_menu.unpost()
+        self.sort_files()
         self.f_browser_files.context_menu.delete(0, END)
+        self.f_browser_files.context_menu.unpost()
     
     def copy(self):
         if self.file_name_selected != '':
             self.current_copy_path = Path(self.current_path, self.file_name_selected)
             self.file_name_copy = self.file_name_selected
-            #self.check_paste_option()
    
     def cut(self):
         self.copy()
@@ -212,7 +241,7 @@ class App(CTk):
                 shutil.move(self.current_copy_path, self.current_path, copy_function=shutil.move)
             else:
                 shutil.copytree(self.current_copy_path, Path(self.current_path, self.file_name_copy), copy_function=shutil.copy)
-        self.get_all_files() 
+        self.get_all_files()
         
     def delete(self):   
         file = Path(self.current_path, self.file_name_selected)
@@ -230,7 +259,7 @@ class App(CTk):
             self.list_all_files = list(filter(lambda x: x['name'] != self.file_name_selected, self.list_all_files))
             self.file_name_selected = ''
             self.current_copy_path = ''
-            self.upload_files()
+            self.sort_files()
    
     def window_creation_folder(self):
         def create_folder():
@@ -238,10 +267,10 @@ class App(CTk):
             folder.mkdir(exist_ok=True)
             folder = os.stat(folder)
             
-            self.list_all_files.append({'name':window.name_folder.get(), 'date':dt.datetime.fromtimestamp(folder.st_mtime).strftime('%d/%m/%Y %H:%M:%S'),
+            self.list_all_files.append({'name':window.name_folder.get(), 'date':folder.st_mtime,
                                         'extension':'File folder', 'size': folder.st_size, 'icon':self.icons['File folder']})
             window.name_folder.delete(0, END)
-            self.upload_files()
+            self.sort_files()
             window.destroy()
             
         window = CTkToplevel(self)
@@ -279,7 +308,7 @@ class App(CTk):
                 file[-1]['name'] = new_name
                 self.current_copy_path = ''
                 self.file_name_selected = ''
-                self.upload_files()
+                self.sort_files()
                 window.destroy()
             
         window = CTkToplevel(self)
@@ -303,16 +332,16 @@ class App(CTk):
         window.bind('WM_DELETE_WINDOW', window.destroy)
         window.mainloop()   
          
-    def upload_files(self):
+    def upload_files(self, list_all_files):
         self.tview_files.delete(*self.tview_files.get_children())
         if self.current_path != Path('/'):
              self.tview_files.insert('', END, values='...')
-        for file in self.list_all_files:
+        for file in list_all_files:
             if file['icon'] != None:
-                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                self.tview_files.insert('',END, values=(file['name'], dt.datetime.fromtimestamp(file['date']).strftime('%d/%m/%Y %H:%M:%S'), file['extension'], 
                                                         sz(file['size'], system=alternative)), image=file['icon'])
             else: 
-                self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
+                self.tview_files.insert('',END, values=(file['name'], dt.datetime.fromtimestamp(file['date']).strftime('%d/%m/%Y %H:%M:%S'), file['extension'], 
                                                         sz(file['size'], system=alternative)))
         self.load_current_path()
         self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
@@ -328,36 +357,76 @@ class App(CTk):
             
         for file in all_files:
             stat_file = os.stat(Path(self.current_path, file))
-            extension_file = Path(self.current_path, file).suffix
-            date_modified = dt.datetime.fromtimestamp(stat_file.st_mtime).strftime('%d/%m/%Y %H:%M:%S')
+            extension_file = file[file.rfind('.')+1:] if file.rfind('.') !=  -1 else 'File folder'
+            file = file[:file.rfind('.')] if file.rfind('.') !=  -1 else file
+            date_modified = stat_file.st_mtime
             size = stat_file.st_size
-            if '' == extension_file:
-                extension_file = 'File folder'
             if extension_file in self.icons:
                 self.list_all_files.append({'name': file, 'date':date_modified, 'extension':extension_file,'size':size, 'icon':self.icons[extension_file]})
             else:
                 self.list_all_files.append({'name': file,'date':date_modified, 'extension':extension_file,'size':size, 'icon':None})  
     
-        self.upload_files()
+        self.sort_files()
+        
     def sort_files(self):
-        self.upload_files()
-        self.flag_sort = not self.flag_sort
+        if self.flag_sort_stats.get() in [0,1,2,3]:
+            sort_by = self.flag_sort_active.get()
+            option = self.flag_sort_stats_options.get()
+            
+            if sort_by == 'Name':
+                if option:
+                    self.sort_by_name_ZA()
+                else:
+                    self.sort_by_name_AZ()
+            if sort_by == 'Date Modified':
+                if option:
+                    self.sort_by_date_modified_older()
+                else:
+                    self.sort_by_date_modified_newest()
+            if sort_by == 'Size':
+                if option:
+                    self.sort_by_size_smaller()
+                else:
+                    self.sort_by_size_bigger()
+            if sort_by == 'Type':
+                if option:
+                    self.sort_by_type_ZA()
+                else:
+                    self.sort_by_type_AZ()
+        else:
+            self.upload_files(self.list_all_files)
         
-    def sort_by_name(self):
-        self.list_all_files.sort(key=itemgetter('name'), reverse=self.flag_sort)
-        self.sort_files()
+    def sort_by_name_AZ(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=lambda x: x['name'].lower())
+        self.upload_files(list_sorted_all_files)
     
-    def sort_by_date_modified(self):
-        self.list_all_files.sort(key=itemgetter('date'), reverse=self.flag_sort)
-        self.sort_files()
+    def sort_by_name_ZA(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=lambda x: x['name'].lower(), reverse=True)
+        self.upload_files(list_sorted_all_files)
+    
+    def sort_by_date_modified_older(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=itemgetter('date'), reverse=True)
+        self.upload_files(list_sorted_all_files)
         
-    def sort_by_type(self):
-        self.list_all_files.sort(key=itemgetter('extension'), reverse=self.flag_sort)
-        self.sort_files()
+    def sort_by_date_modified_newest(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=itemgetter('date'))
+        self.upload_files(list_sorted_all_files)
         
-    def sort_by_size(self):
-        self.list_all_files.sort(key=itemgetter('size'), reverse=self.flag_sort)
-        self.sort_files()
+    def sort_by_type_ZA(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=lambda x: x['name'].lower(), reverse=True)
+        self.upload_files(list_sorted_all_files)
+        
+    def sort_by_type_AZ(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=lambda x: x['name'].lower())
+        self.upload_files(list_sorted_all_files)    
+    
+    def sort_by_size_bigger(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=itemgetter('size'))
+        self.upload_files(list_sorted_all_files)
+        
+    def sort_by_size_smaller(self):
+        list_sorted_all_files = sorted(self.list_all_files,key=itemgetter('size'), reverse=True)
+        self.upload_files(list_sorted_all_files)
         
     def load_next_files(self, event):
         #Loader files and folders of next folder    
