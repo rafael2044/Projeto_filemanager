@@ -43,7 +43,7 @@ class App(CTk):
         self.style.layout('Treeview', [('Treeview.theearea', {'sticky':'nswe'})])
         self.style.configure('TMenu.tk_popup', background='black')
         self.style.configure('TMenubutton', foreground='black', font=('Roboto Slab', 15), background="#1f538d", padding=5, width=3)
-        
+        print(self.style.theme_names())
         
         #Fonts
         self.label_font = CTkFont(family='Roboto Slab', size=18, weight='bold')
@@ -78,10 +78,11 @@ class App(CTk):
         self.tview_files = Treeview(self.f_browser_files, columns=['#01', "#02", "#03", "#04"], show='tree headings',
                                     selectmode='extended')
         
-        self.tview_files.heading('#01',text=self.columns_name[0], anchor=W)
-        self.tview_files.heading('#02',text= self.columns_name[1], anchor=W)
-        self.tview_files.heading('#03', text=self.columns_name[2], anchor=W)
-        self.tview_files.heading('#04', text=self.columns_name[3], anchor=W)
+        self.tview_files.heading('#01',text=self.columns_name[0], anchor=W, command=self.sort_by_name)
+        self.tview_files.heading('#02',text= self.columns_name[1], anchor=W, command=self.sort_by_date_modified)
+        self.tview_files.heading('#03', text=self.columns_name[2], anchor=W, command=self.sort_by_type)
+        self.tview_files.heading('#04', text=self.columns_name[3], anchor=W, command=self.sort_by_size)
+        
         self.tview_files.column('#0', width=30)
         self.tview_files.column('#01', width=500)
         self.tview_files.column('#02', width=150)
@@ -211,7 +212,7 @@ class App(CTk):
                 shutil.move(self.current_copy_path, self.current_path, copy_function=shutil.move)
             else:
                 shutil.copytree(self.current_copy_path, Path(self.current_path, self.file_name_copy), copy_function=shutil.copy)
-        self.upload_files() 
+        self.get_all_files() 
         
     def delete(self):   
         file = Path(self.current_path, self.file_name_selected)
@@ -226,14 +227,19 @@ class App(CTk):
                                                    message="Do you want to delete the directory? (Subdirectories will also be excluded)")
                 if confirmation:
                     shutil.rmtree(file, ignore_errors=True)
-                    
+            self.list_all_files = list(filter(lambda x: x['name'] != self.file_name_selected, self.list_all_files))
             self.file_name_selected = ''
             self.current_copy_path = ''
             self.upload_files()
    
     def window_creation_folder(self):
         def create_folder():
-            Path(self.current_path, window.name_folder.get()).mkdir(exist_ok=True)
+            folder = Path(self.current_path, window.name_folder.get())
+            folder.mkdir(exist_ok=True)
+            folder = os.stat(folder)
+            
+            self.list_all_files.append({'name':window.name_folder.get(), 'date':dt.datetime.fromtimestamp(folder.st_mtime).strftime('%d/%m/%Y %H:%M:%S'),
+                                        'extension':'File folder', 'size': folder.st_size, 'icon':self.icons['File folder']})
             window.name_folder.delete(0, END)
             self.upload_files()
             window.destroy()
@@ -269,6 +275,8 @@ class App(CTk):
                 if extension != '':
                     new_name = new_name + extension
                 Path.rename(self.current_copy_path, Path(self.current_path, new_name))
+                file = list(filter(lambda x: x['name'] == self.file_name_selected, self.list_all_files))
+                file[-1]['name'] = new_name
                 self.current_copy_path = ''
                 self.file_name_selected = ''
                 self.upload_files()
@@ -302,14 +310,12 @@ class App(CTk):
         for file in self.list_all_files:
             if file['icon'] != None:
                 self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
-                                                        file['size']), image=file['icon'])
+                                                        sz(file['size'], system=alternative)), image=file['icon'])
             else: 
                 self.tview_files.insert('',END, values=(file['name'], file['date'], file['extension'], 
-                                                        file['size']))
-
+                                                        sz(file['size'], system=alternative)))
         self.load_current_path()
         self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
-        self.tview_files.bind('<Button-1>', self.sort_files)
         self.tview_files.bind('<Double-1>', self.load_next_files)
         self.tview_files.bind('<Button-3>', self.context_menu)
         self.tview_files.bind('<Return>', self.load_next_files)
@@ -324,7 +330,7 @@ class App(CTk):
             stat_file = os.stat(Path(self.current_path, file))
             extension_file = Path(self.current_path, file).suffix
             date_modified = dt.datetime.fromtimestamp(stat_file.st_mtime).strftime('%d/%m/%Y %H:%M:%S')
-            size = sz(stat_file.st_size, system=alternative)
+            size = stat_file.st_size
             if '' == extension_file:
                 extension_file = 'File folder'
             if extension_file in self.icons:
@@ -333,34 +339,25 @@ class App(CTk):
                 self.list_all_files.append({'name': file,'date':date_modified, 'extension':extension_file,'size':size, 'icon':None})  
     
         self.upload_files()
-    def sort_files(self, event):
-        region = self.tview_files.identify('region', event.x, event.y)
-        if region == 'heading':
-            column = self.tview_files.identify_column(event.x) 
-            sort_by = self.tview_files.heading(column)['text']
-            if sort_by in self.columns_name:
-                if sort_by == self.columns_name[0]:
-                    self.sort_by_name()
-                elif sort_by == self.columns_name[1]:
-                    self.sort_by_date_modified()
-                elif sort_by == self.columns_name[2]:
-                    self.sort_by_type()
-                elif sort_by == self.columns_name[3]:
-                    self.sort_by_size()
-                self.upload_files()
-                self.flag_sort = not self.flag_sort
+    def sort_files(self):
+        self.upload_files()
+        self.flag_sort = not self.flag_sort
+        
     def sort_by_name(self):
         self.list_all_files.sort(key=itemgetter('name'), reverse=self.flag_sort)
-    
+        self.sort_files()
     
     def sort_by_date_modified(self):
         self.list_all_files.sort(key=itemgetter('date'), reverse=self.flag_sort)
+        self.sort_files()
         
     def sort_by_type(self):
         self.list_all_files.sort(key=itemgetter('extension'), reverse=self.flag_sort)
-    
+        self.sort_files()
+        
     def sort_by_size(self):
         self.list_all_files.sort(key=itemgetter('size'), reverse=self.flag_sort)
+        self.sort_files()
         
     def load_next_files(self, event):
         #Loader files and folders of next folder    
