@@ -469,6 +469,7 @@ class App(CTk):
         self.f_current_path.menu_options = Menu(self.f_current_path, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
         self.f_current_path.b_menu = CTkButton(self.f_current_path, text='...', font=self.button_font, command=self.load_menu_options, width=50, height=30)
         self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
+        
     def load_menu_options(self):
         x, y = self.f_current_path.b_menu.winfo_rootx(), self.f_current_path.b_menu.winfo_rooty()
         options_menu = {'Create new':{'Create Folder': self.window_creation_folder}, 'Show Hidden Folders':self.get_all_files}
@@ -488,6 +489,7 @@ class App(CTk):
     def close_menu_options(self, event):
         self.f_current_path.menu_options.delete(0, END)
         self.f_current_path.menu_options.unpost()
+        
     def load_search_widgets(self):
         #Loads search frame widgets
         self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
