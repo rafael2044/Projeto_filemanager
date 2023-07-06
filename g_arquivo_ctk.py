@@ -362,7 +362,7 @@ class App(CTk):
                 self.tview_files.insert('',END, values=(file['name'], dt.datetime.fromtimestamp(file['date']).strftime('%d/%m/%Y %H:%M:%S'), file['extension'], 
                                                         sz(file['size'], system=alternative)))
         self.load_current_path()
-        self.load_info_folder()
+        self.load_info_folder(list_all_files)
         self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
         self.tview_files.bind('<Double-1>', self.load_next_files)
         self.tview_files.bind('<Button-3>', self.context_menu)
@@ -479,11 +479,11 @@ class App(CTk):
                         command= lambda x=x: self.load_file_from_disk(Path(path_discs, discs[x])))
             .pack(side=LEFT, padx=10, pady=10) for x in range(len(discs))]
             
-    def load_info_folder(self):
+    def load_info_folder(self, list_files):
         [x.destroy() for x in self.f_info_folder.winfo_children()]
         count_file = 0
         count_folder = 0
-        for element in self.list_all_files:
+        for element in list_files:
             element_type = element['extension']
             if element_type == 'File folder':
                 count_folder+=1
