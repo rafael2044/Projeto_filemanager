@@ -192,17 +192,13 @@ class App(CTk):
         
     def get_selectect_file_name(self, event):
         try:
-            name = self.tview_files.item(self.tview_files.selection()[0]).get('values')[0]
+            name, *_ = self.tview_files.item(self.tview_files.selection()[0]).get('values')
             if name != '...':
-                file = list(filter(lambda x: x['name'] == name, self.list_all_files))
-                if len(file) == 1:
-                    file = file[0]
-                    if file['extension'] != 'File folder':
-                        self.file_name_selected = f"{name}.{file['extension']}"
-                    else:
-                        self.file_name_selected = name
-            else:
-                self.file_name_selected = name
+                file, *_ = list(filter(lambda x: x['name'] == name, self.list_all_files))
+                self.full_name_selected_file = name
+                if file['extension'] != 'File folder':
+                    self.full_name_selected_file = f"{name}.{file['extension']}"
+            self.file_name_selected = name
             
         except IndexError as e:
             pass
@@ -311,20 +307,26 @@ class App(CTk):
            
     def window_rename(self):
         def rename():
-            if self.file_name_selected != '':
+            full_name_file = self.full_name_selected_file
+            file_name = self.file_name_selected
             
-                self.current_copy_path = Path(self.current_path, self.file_name_selected)
-                extension = Path(self.current_copy_path).suffix
-                new_name = window.new_name.get()
-                if extension != '':
-                    new_name = new_name + extension
-                Path.rename(self.current_copy_path, Path(self.current_path, new_name))
-                file = list(filter(lambda x: x['name'] == self.file_name_selected, self.list_all_files))
-                file[-1]['name'] = new_name
-                self.current_copy_path = ''
-                self.file_name_selected = ''
-                self.sort_files()
-                window.destroy()
+            file_path = Path(self.current_path, full_name_file)
+            extension_file = file_path.suffix
+            
+            new_name_file = window.new_name.get()
+            
+            new_full_name_file = new_name_file
+            if extension_file:
+                new_full_name_file = new_name_file + extension_file
+                
+            new_file_path = Path(self.current_path, new_full_name_file)
+            file_path.rename(new_file_path)
+            
+            file, *_ = list(filter(lambda x: x['name'] == file_name, self.list_all_files))
+            file['name'] = new_name_file
+            self.current_copy_path = ''
+            self.sort_files()
+            window.destroy()
             
         window = CTkToplevel(self)
         window.title("Rename - Filemanager")
@@ -465,10 +467,14 @@ class App(CTk):
         if list(uname())[0] == 'Linux':
             user = list(popen('whoami'))[0].rsplit('\n')[0]
             source = Path('/')
-            discs = listdir(f'/media/{user}')
+            path_discs = Path(f"/media/{user}")
+            if not path_discs.exists():
+                path_discs = Path(f"/run/media/{user}")
+            discs = listdir(path_discs)
+
             CTkButton(self.f_info, text=source, command= lambda : self.load_file_from_disk(source)).pack(side=LEFT, padx=10, pady=10)
             [CTkButton(self.f_info, text=discs[x], 
-                        command= lambda x=x: self.load_file_from_disk(Path(f'/media/{user}', discs[x])))
+                        command= lambda x=x: self.load_file_from_disk(Path(path_discs, discs[x])))
             .pack(side=LEFT, padx=10, pady=10) for x in range(len(discs))]
             
     def load_file_from_disk(self, path):

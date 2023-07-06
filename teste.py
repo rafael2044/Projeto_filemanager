@@ -1,2 +1,3 @@
 
-print('a.b.c.d'.rfind('.'))
+if 'sdasdas':
+    print('Ola')
