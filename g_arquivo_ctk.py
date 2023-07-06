@@ -37,9 +37,9 @@ class App(CTk):
         
         #Style
         self.style = Style()
-        self.style.configure('Treeview.Heading', font=('Roboto Slab', 15, 'bold'), background='#939393', foreground='black',
+        self.style.configure('Treeview.Heading', font=('Roboto Slab', 13, 'bold'), background='#939393', foreground='black',
                              padding=(10,2))
-        self.style.configure('Treeview', font=('Roboto Slab', 13), rowheight=40, background='#242323', foreground='white',
+        self.style.configure('Treeview', font=('Roboto Slab', 11), rowheight=40, background='#242323', foreground='white',
                              padding=(10,5), )
         self.style.layout('Treeview', [('Treeview.theearea', {'sticky':'nswe'})])
         self.style.configure('TMenu.tk_popup', background='black')
@@ -72,6 +72,7 @@ class App(CTk):
         #Frames
         self.f_main = CTkFrame(self, corner_radius=25)
         self.f_browser = CTkFrame(self.f_main, height=50, fg_color='transparent')
+        self.f_browser_disks = CTkFrame(self.f_main, width=150)
         self.f_browser_files=CTkFrame(self.f_main, fg_color='transparent')
         self.f_info_folder = CTkFrame(self.f_browser_files, height=20, fg_color='transparent')
         self.f_info = CTkFrame(self.f_browser, height=30)
@@ -92,7 +93,7 @@ class App(CTk):
         self.tview_files.heading('#04', text=self.columns_name[3], anchor=W)
         
         self.tview_files.column('#0', width=30)
-        self.tview_files.column('#01', width=500)
+        self.tview_files.column('#01', width=450)
         self.tview_files.column('#02', width=150)
         self.tview_files.column('#03', width=80)
         self.tview_files.column('#04', width=80)
@@ -105,7 +106,8 @@ class App(CTk):
         #Pack Widgets
         self.f_main.pack(expand=True, fill=BOTH, padx=10, pady=10)
         self.f_browser.pack(fill=X, padx=10, pady=10)
-        self.f_browser_files.pack(fill=BOTH, expand=True, padx=10, pady=10)
+        self.f_browser_disks.pack(fill=Y, side=LEFT, padx=10, pady=10)
+        self.f_browser_files.pack(fill=BOTH, expand=True, padx=5, pady=10, side=LEFT)
         self.f_info.pack(fill=X, padx=10, pady=5)
         self.f_search.pack(fill=X, padx=10, pady=5)
         self.f_current_path.pack(fill=X, padx=10, pady=5)
@@ -115,7 +117,7 @@ class App(CTk):
         self.scrollbar_y.pack(side=RIGHT, fill=Y)
         
         #Loads frame widgets
-        self.load_info_widgets()
+        self.load_browser_disks_widgets()
         self.load_search_widgets()
         
         #Loads Files and Folders
@@ -464,7 +466,7 @@ class App(CTk):
                 self.current_path = self.current_path.parent
             self.get_all_files()    
     
-    def load_info_widgets(self):
+    def load_browser_disks_widgets(self):
         #Loads disks and sourcer dir
         if list(uname())[0] == 'Linux':
             user = list(popen('whoami'))[0].rsplit('\n')[0]
@@ -473,11 +475,22 @@ class App(CTk):
             if not path_discs.exists():
                 path_discs = Path(f"/run/media/{user}")
             discs = listdir(path_discs)
-
-            CTkButton(self.f_info, text=source, command= lambda : self.load_file_from_disk(source)).pack(side=LEFT, padx=10, pady=10)
-            [CTkButton(self.f_info, text=discs[x], 
+            locations_folders = list(filter(lambda x: x[0] != '.', listdir(Path.home())))
+            locations = {'home': Path.home()}
+            for location in locations_folders:
+                locations[location]=Path(locations['home'], location)
+                
+            config={"anchor":W, 'padx':10, 'pady':10}
+            
+            CTkLabel(self.f_browser_disks, text='Locations', font=self.label_font).pack(**config)
+            [CTkButton(self.f_browser_disks, text=name, command=lambda x=command: self.load_file_from_location(x)).pack(**config) for name, command in locations.items()]
+            
+            CTkLabel(self.f_browser_disks, text='Discs', font=self.label_font).pack(**config)
+            
+            CTkButton(self.f_browser_disks, text=source, command= lambda : self.load_file_from_disk(source)).pack(**config)
+            [CTkButton(self.f_browser_disks, text=discs[x], 
                         command= lambda x=x: self.load_file_from_disk(Path(path_discs, discs[x])))
-            .pack(side=LEFT, padx=10, pady=10) for x in range(len(discs))]
+            .pack(**config) for x in range(len(discs))]
             
     def load_info_folder(self, list_files):
         [x.destroy() for x in self.f_info_folder.winfo_children()]
@@ -496,6 +509,10 @@ class App(CTk):
     def load_file_from_disk(self, path):
         #Loads disks and files on disk
         self.current_path = path
+        self.get_all_files()
+    
+    def load_file_from_location(self, location):
+        self.current_path = location
         self.get_all_files()
     
     def load_current_path(self):
