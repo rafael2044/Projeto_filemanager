@@ -71,13 +71,12 @@ class App(CTk):
         
         #Frames
         self.f_main = CTkFrame(self, corner_radius=25)
-        self.f_browser = CTkFrame(self.f_main, height=50, fg_color='transparent')
+        self.f_browser = CTkFrame(self.f_main, fg_color='transparent')
         self.f_browser_disks = CTkFrame(self.f_main, width=150)
         self.f_browser_files=CTkFrame(self.f_main, fg_color='transparent')
         self.f_info_folder = CTkFrame(self.f_browser_files, height=20, fg_color='transparent')
-        self.f_info = CTkFrame(self.f_browser, height=30)
-        self.f_search = CTkFrame(self.f_browser, height=2)
-        self.f_current_path = CTkFrame(self.f_browser, height=20, fg_color='transparent')
+        self.f_search = CTkFrame(self.f_browser, height=0)
+        self.f_current_path = CTkFrame(self.f_browser, height=0, fg_color='transparent')
         
         #Context Menu
         self.f_browser_files.context_menu = Menu(self.f_browser_files, tearoff=0, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
@@ -105,12 +104,11 @@ class App(CTk):
         
         #Pack Widgets
         self.f_main.pack(expand=True, fill=BOTH, padx=10, pady=10)
-        self.f_browser.pack(fill=X, padx=10, pady=10)
+        self.f_browser.pack(fill=X, padx=10, pady=3)
         self.f_browser_disks.pack(fill=Y, side=LEFT, padx=10, pady=10)
         self.f_browser_files.pack(fill=BOTH, expand=True, padx=5, pady=10, side=LEFT)
-        self.f_info.pack(fill=X, padx=10, pady=5)
         self.f_current_path.pack(fill=X, padx=10, pady=5)
-        self.f_search.pack(fill=X, padx=10, pady=5)
+        self.f_search.pack(fill=X, padx=10, pady=0)
         self.f_info_folder.pack(side=BOTTOM, fill=X)
         self.scrollbar_x.pack(side=BOTTOM, fill=X)
         self.tview_files.pack(expand=True, fill=BOTH, side=LEFT)
@@ -517,12 +515,12 @@ class App(CTk):
     def load_current_path(self):
         #Loads current path and menu into information frame
         [x.destroy() for x in self.f_current_path.winfo_children()]
-        CTkLabel(self.f_current_path, text=self.current_path, font=self.label_font).pack(anchor=W, side=LEFT)
+        CTkLabel(self.f_current_path, text=self.current_path, font=self.label_font).pack(anchor=W, side=LEFT, padx=10, pady=2)
         self.f_current_path.menu_options = Menu(self.f_current_path, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
         self.f_current_path.b_menu = CTkButton(self.f_current_path, text='...', font=self.button_font, command=self.load_menu_options, width=50, height=30)
         self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
         CTkButton(self.f_current_path, text='', image=self.icon_search, command=self.load_search_widgets,
-                  width=30, fg_color='transparent').pack(side=RIGHT, padx=10, pady=10)
+                  width=30, fg_color='transparent').pack(side=RIGHT, padx=10, pady=5)
         self.flag_search = True
         
     def load_menu_options(self):
@@ -548,10 +546,11 @@ class App(CTk):
     def load_search_widgets(self):
         #Loads search frame widgets
         if self.flag_search:
-            self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
-            self.search.pack(side=LEFT, fill=X, expand=True, padx=10, pady=10)
-            self.search.bind("<KeyPress>", self.file_search)
-            self.search.bind('<Return>', self.file_search)
+            self.f_search.search = CTkEntry(self.f_search, font=self.entry_font, height=30, placeholder_text="to look for...")
+            self.f_search.search.pack(side=LEFT, fill=X, expand=True, pady=2)
+            self.f_search.search.focus()
+            self.f_search.search.bind("<KeyPress>", self.file_search)
+            self.f_search.search.bind('<Return>', self.file_search)
             self.flag_search = not self.flag_search
         else: 
             [x.destroy() for x in self.f_search.winfo_children()]
@@ -560,7 +559,7 @@ class App(CTk):
         
     def file_search(self, event=None):
         #Upload files with searched name
-        file_name = self.search.get()
+        file_name = self.f_search.search.get()
         self.tview_files.delete(*self.tview_files.get_children())
         self.tview_files.insert('', END, values='...', image=self.icon_return)
         files = list(filter(lambda x: file_name.lower() in x['name'].lower(), self.list_all_files))
