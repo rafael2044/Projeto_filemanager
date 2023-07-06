@@ -73,6 +73,7 @@ class App(CTk):
         self.f_main = CTkFrame(self, corner_radius=25)
         self.f_browser = CTkFrame(self.f_main, height=50, fg_color='transparent')
         self.f_browser_files=CTkFrame(self.f_main, fg_color='transparent')
+        self.f_info_folder = CTkFrame(self.f_browser_files, height=20, fg_color='transparent')
         self.f_info = CTkFrame(self.f_browser, height=30)
         self.f_search = CTkFrame(self.f_browser, height=20)
         self.f_current_path = CTkFrame(self.f_search, height=20, fg_color='transparent')
@@ -108,6 +109,7 @@ class App(CTk):
         self.f_info.pack(fill=X, padx=10, pady=5)
         self.f_search.pack(fill=X, padx=10, pady=5)
         self.f_current_path.pack(fill=X, padx=10, pady=5)
+        self.f_info_folder.pack(side=BOTTOM, fill=X)
         self.scrollbar_x.pack(side=BOTTOM, fill=X)
         self.tview_files.pack(expand=True, fill=BOTH, side=LEFT)
         self.scrollbar_y.pack(side=RIGHT, fill=Y)
@@ -360,6 +362,7 @@ class App(CTk):
                 self.tview_files.insert('',END, values=(file['name'], dt.datetime.fromtimestamp(file['date']).strftime('%d/%m/%Y %H:%M:%S'), file['extension'], 
                                                         sz(file['size'], system=alternative)))
         self.load_current_path()
+        self.load_info_folder()
         self.tview_files.bind('<<TreeviewSelect>>', self.get_selectect_file_name)
         self.tview_files.bind('<Double-1>', self.load_next_files)
         self.tview_files.bind('<Button-3>', self.context_menu)
@@ -475,6 +478,20 @@ class App(CTk):
             [CTkButton(self.f_info, text=discs[x], 
                         command= lambda x=x: self.load_file_from_disk(Path(path_discs, discs[x])))
             .pack(side=LEFT, padx=10, pady=10) for x in range(len(discs))]
+            
+    def load_info_folder(self):
+        [x.destroy() for x in self.f_info_folder.winfo_children()]
+        count_file = 0
+        count_folder = 0
+        for element in self.list_all_files:
+            element_type = element['extension']
+            if element_type == 'File folder':
+                count_folder+=1
+            else:
+                count_file+=1
+        
+        self.f_info_folder.count_folder_file = CTkLabel(self.f_info_folder, text=f'{count_folder} Folders, {count_file} Files', font=self.label_font)
+        self.f_info_folder.count_folder_file.pack(side=LEFT)
             
     def load_file_from_disk(self, path):
         #Loads disks and files on disk
