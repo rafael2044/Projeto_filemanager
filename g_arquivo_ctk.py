@@ -472,15 +472,14 @@ class App(CTk):
             if not path_discs.exists():
                 path_discs = Path(f"/run/media/{user}")
             discs = listdir(path_discs)
-            locations_folders = list(filter(lambda x: x[0] != '.', listdir(Path.home())))
-            locations = {'home': Path.home()}
-            for location in locations_folders:
-                locations[location]=Path(locations['home'], location)
-                
+            locations_folders_name = list(filter(lambda x: x[0] != '.', listdir(Path.home())))
+            locations = [[name,Path(Path.home(), name)] for name in locations_folders_name]
+            locations.insert(0, ['Home', Path.home()])
+       
             config={"anchor":W, 'padx':10, 'pady':10}
             
             CTkLabel(self.f_browser_disks, text='Locations', font=self.label_font).pack(**config)
-            [CTkButton(self.f_browser_disks, text=name, command=lambda x=command: self.load_file_from_location(x)).pack(**config) for name, command in locations.items()]
+            [CTkButton(self.f_browser_disks, text=location[0], command=lambda x=location[-1]: self.load_file_from_location(x)).pack(**config) for location in locations]
             
             CTkLabel(self.f_browser_disks, text='Discs', font=self.label_font).pack(**config)
             
