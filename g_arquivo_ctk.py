@@ -76,8 +76,8 @@ class App(CTk):
         self.f_browser_files=CTkFrame(self.f_main, fg_color='transparent')
         self.f_info_folder = CTkFrame(self.f_browser_files, height=20, fg_color='transparent')
         self.f_info = CTkFrame(self.f_browser, height=30)
-        self.f_search = CTkFrame(self.f_browser, height=20)
-        self.f_current_path = CTkFrame(self.f_search, height=20, fg_color='transparent')
+        self.f_search = CTkFrame(self.f_browser, height=2)
+        self.f_current_path = CTkFrame(self.f_browser, height=20, fg_color='transparent')
         
         #Context Menu
         self.f_browser_files.context_menu = Menu(self.f_browser_files, tearoff=0, font=('Roboto Slab', 12), activeborderwidth=2, bd=2)
@@ -109,8 +109,8 @@ class App(CTk):
         self.f_browser_disks.pack(fill=Y, side=LEFT, padx=10, pady=10)
         self.f_browser_files.pack(fill=BOTH, expand=True, padx=5, pady=10, side=LEFT)
         self.f_info.pack(fill=X, padx=10, pady=5)
-        self.f_search.pack(fill=X, padx=10, pady=5)
         self.f_current_path.pack(fill=X, padx=10, pady=5)
+        self.f_search.pack(fill=X, padx=10, pady=5)
         self.f_info_folder.pack(side=BOTTOM, fill=X)
         self.scrollbar_x.pack(side=BOTTOM, fill=X)
         self.tview_files.pack(expand=True, fill=BOTH, side=LEFT)
@@ -118,7 +118,6 @@ class App(CTk):
         
         #Loads frame widgets
         self.load_browser_disks_widgets()
-        self.load_search_widgets()
         
         #Loads Files and Folders
         self.get_all_files()
@@ -522,6 +521,9 @@ class App(CTk):
         self.f_current_path.menu_options = Menu(self.f_current_path, tearoff=0, font=('Roboto Slab', 14), background='white', borderwidth=2)
         self.f_current_path.b_menu = CTkButton(self.f_current_path, text='...', font=self.button_font, command=self.load_menu_options, width=50, height=30)
         self.f_current_path.b_menu.pack(side=RIGHT, anchor=E)
+        CTkButton(self.f_current_path, text='', image=self.icon_search, command=self.load_search_widgets,
+                  width=30, fg_color='transparent').pack(side=RIGHT, padx=10, pady=10)
+        self.flag_search = True
         
     def load_menu_options(self):
         x, y = self.f_current_path.b_menu.winfo_rootx(), self.f_current_path.b_menu.winfo_rooty()
@@ -545,12 +547,16 @@ class App(CTk):
         
     def load_search_widgets(self):
         #Loads search frame widgets
-        self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
-        self.search.pack(side=LEFT, fill=X, expand=True, padx=10, pady=10)
-        CTkButton(self.f_search, text='', image=self.icon_search, command=self.file_search,
-                  width=30, fg_color='transparent').pack(side=RIGHT, padx=10, pady=10)
-        self.search.bind("<KeyPress>", self.file_search)
-        self.search.bind('<Return>', self.file_search)
+        if self.flag_search:
+            self.search = CTkEntry(self.f_search, font=self.entry_font, height=40)
+            self.search.pack(side=LEFT, fill=X, expand=True, padx=10, pady=10)
+            self.search.bind("<KeyPress>", self.file_search)
+            self.search.bind('<Return>', self.file_search)
+            self.flag_search = not self.flag_search
+        else: 
+            [x.destroy() for x in self.f_search.winfo_children()]
+            self.f_search.configure(height=0)
+            self.flag_search = not self.flag_search
         
     def file_search(self, event=None):
         #Upload files with searched name
