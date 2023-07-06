@@ -254,22 +254,22 @@ class App(CTk):
         
     def delete(self):   
         file_name = self.file_name_selected
-        file_path = Path(self.current_path, file_name)
+        full_file_name = self.full_name_selected_file
+        
+        file_path = Path(self.current_path, full_file_name)
         if file_path.exists():
             if file_path.is_dir():
                 confirmation = messagebox.askyesno(title='Delete Alert',
                                                 message="Do you want to delete the directory? (Subdirectories will also be excluded)")
                 if confirmation:
                     rmtree(file_path, ignore_errors=True)
-            if isfile(file_path):
+            if file_path.is_file():
                 confirmation = messagebox.askyesno(title='Delete Alert',
                                     message='do you want to delete the file?')
                 if confirmation:
                     remove(file_path)
                     
-            self.list_all_files = list(filter(lambda x: x['name'] != file_name[:file_name.rfind('.')], self.list_all_files))
-            self.file_name_selected = ''
-            self.current_copy_path = ''
+            self.list_all_files = list(filter(lambda x: x['name'] != file_name, self.list_all_files))
             self.sort_files()
    
     def window_creation_folder(self):
@@ -280,7 +280,6 @@ class App(CTk):
             
             self.list_all_files.append({'name':window.name_folder.get(), 'date':folder.st_mtime,
                                         'extension':'File folder', 'size': folder.st_size, 'icon':self.icons['File folder']})
-            window.name_folder.delete(0, END)
             self.sort_files()
             window.destroy()
             
